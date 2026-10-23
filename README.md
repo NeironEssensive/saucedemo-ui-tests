@@ -1,107 +1,108 @@
-# UI-автотесты SauceDemo
+# SauceDemo UI Tests
 
 [![UI tests](https://github.com/NeironEssensive/saucedemo-ui-tests/actions/workflows/ui-tests.yml/badge.svg)](https://github.com/NeironEssensive/saucedemo-ui-tests/actions/workflows/ui-tests.yml)
-[![Allure report](https://img.shields.io/badge/Allure-отчёт-orange)](https://neironessensive.github.io/saucedemo-ui-tests/)
+[![Allure report](https://img.shields.io/badge/Allure-report-orange)](https://neironessensive.github.io/saucedemo-ui-tests/)
 
-Автотесты пользовательского интерфейса учебного интернет-магазина [SauceDemo](https://www.saucedemo.com):
-вход, каталог, корзина и оформление заказа. Тесты запускаются в GitHub Actions на каждый push,
-а свежий отчёт Allure публикуется на GitHub Pages.
+UI test automation for [SauceDemo](https://www.saucedemo.com), a demo online store:
+login, product catalog, shopping cart and checkout. The tests run in GitHub Actions on every push,
+and the latest Allure report is published to GitHub Pages.
 
-**Отчёт последнего прогона:** https://neironessensive.github.io/saucedemo-ui-tests/
+**Latest test report:** https://neironessensive.github.io/saucedemo-ui-tests/
 
-## Что проверяется
+## What is covered
 
-| Область | Проверки |
+| Area | Checks |
 |---|---|
-| Авторизация | успешный вход; ошибки для заблокированного пользователя, неверного пароля, пустого логина и пароля; выход через меню; каталог недоступен без входа |
-| Каталог | отображаются все товары; сортировка по имени (A → Z, Z → A) и по цене (по возрастанию и убыванию) |
-| Корзина | счётчик на иконке корзины; удаление товара в каталоге; содержимое корзины и удаление на странице корзины |
-| Оформление заказа | полный путь от каталога до «Thank you for your order!»; обязательные поля формы покупателя; расчёт суммы, налога 8% и итога |
+| Login | successful login; errors for a locked-out user, wrong password, empty username and empty password; logout via the side menu; the catalog is not accessible without logging in |
+| Catalog | all products are displayed; sorting by name (A → Z, Z → A) and by price (low to high, high to low) |
+| Cart | cart badge counter; removing a product from the catalog; cart contents and removing a product on the cart page |
+| Checkout | full flow from the catalog to "Thank you for your order!"; required fields of the customer form; item total, 8% tax and order total calculation |
 
-Всего 20 тестов (часть из них параметризованные).
+20 tests in total, some of them parameterized.
 
-## Стек
+## Tech stack
 
-- Java 17, Maven (wrapper в репозитории — ставить Maven не нужно)
-- [Selenide](https://selenide.org) — обёртка над Selenium WebDriver с умными ожиданиями
-- JUnit 5 — в том числе `@ParameterizedTest` с `@MethodSource` и `@EnumSource`
-- AssertJ — проверки списков и сумм
-- Allure — отчёт с шагами и скриншотами
-- GitHub Actions + GitHub Pages — CI и публикация отчёта
+- Java 17, Maven (the wrapper is included, no need to install Maven)
+- [Selenide](https://selenide.org) — a Selenium WebDriver wrapper with built-in smart waits
+- JUnit 5 — including `@ParameterizedTest` with `@MethodSource` and `@EnumSource`
+- AssertJ — assertions on lists and amounts
+- Allure — report with steps and screenshots
+- GitHub Actions + GitHub Pages — CI and report publishing
 
-## Структура
+## Project structure
 
 ```
 src/test/java/ru/qa/saucedemo
-├── data/                     тестовые данные
-│   ├── User.java             пользователи SauceDemo
-│   ├── Product.java          товары с ценами (BigDecimal)
-│   ├── SortOrder.java        варианты сортировки
-│   └── Customer.java         данные покупателя для формы заказа
-├── pages/                    Page Object — по классу на страницу
+├── data/                     test data
+│   ├── User.java             SauceDemo users
+│   ├── Product.java          products with prices (BigDecimal)
+│   ├── SortOrder.java        sort options
+│   └── Customer.java         customer data for the checkout form
+├── pages/                    Page Objects, one class per page
 │   ├── components/
-│   │   └── HeaderComponent   шапка: корзина и меню, общая для всех страниц
+│   │   └── HeaderComponent   header with cart and menu, shared by all pages
 │   ├── LoginPage
-│   ├── InventoryPage         каталог
+│   ├── InventoryPage         product catalog
 │   ├── CartPage
-│   ├── CheckoutInfoPage      шаг 1: данные покупателя
-│   ├── CheckoutOverviewPage  шаг 2: товары и суммы
+│   ├── CheckoutInfoPage      step 1: customer information
+│   ├── CheckoutOverviewPage  step 2: items and totals
 │   └── CheckoutCompletePage
-├── tests/                    тесты по функциональным областям
-│   ├── BaseTest              настройка браузера и Allure
+├── tests/                    tests grouped by feature
+│   ├── BaseTest              browser and Allure setup
 │   ├── LoginTest
 │   ├── InventoryTest
 │   ├── CartTest
 │   └── CheckoutTest
 └── util/
-    └── Prices.java           разбор сумм вида "$29.99"
+    └── Prices.java           parses amounts like "$29.99"
 ```
 
-## Принятые решения
+## Design decisions
 
-- **Page Object с fluent-интерфейсом.** Каждый метод страницы возвращает страницу, на которой окажется
-  пользователь, поэтому тест читается как сценарий:
+- **Page Object with a fluent interface.** Every page method returns the page the user ends up on,
+  so a test reads like a scenario:
   `inventory.add(BACKPACK).header().openCart().checkout().continueWith(customer).finish()`.
-  Селекторы живут только в классах страниц: если вёрстка поменяется, правится одно место.
-- **Тесты не знают о селекторах.** В тестах нет ни одного `$("...")` — только действия и проверки
-  на языке предметной области.
-- **Стабильные селекторы.** Используются `id`, `data-test` и классы, а не XPath по позиции.
-  Карточка товара ищется по его названию, поэтому тесты не зависят от порядка товаров на странице.
-- **Изоляция тестов.** Для каждого теста запускается новый браузер (`closeWebDriver()` в `@AfterEach`),
-  поэтому тесты не делят корзину и сессию и проходят в любом порядке.
-- **Ожидаемые значения считаются, а не копируются.** В проверке итоговой суммы налог и итог
-  вычисляются в тесте из цен товаров (`BigDecimal`, округление `HALF_UP`) и сравниваются со страницей.
-- **Читаемый отчёт.** Методы страниц размечены `@Step` с русскими названиями, у тестов есть `@DisplayName`,
-  при падении в отчёт прикладывается скриншот.
-- **Headless в CI.** Локально тесты идут в обычном Chrome, а в GitHub Actions — в headless-режиме
-  через `-Dselenide.headless=true`, без изменений в коде.
+  Selectors live only in page classes: if the markup changes, there is one place to fix.
+- **Tests know nothing about selectors.** There is not a single `$("...")` in the tests — only actions
+  and checks in the language of the domain.
+- **Stable locators.** Tests use `id`, `data-test` attributes and CSS classes instead of positional XPath.
+  A product card is found by the product name, so the tests do not depend on the order of products on the page.
+- **Test isolation.** Each test gets a fresh browser (`closeWebDriver()` in `@AfterEach`),
+  so tests never share a cart or a session and pass in any order.
+- **Expected values are calculated, not copied.** The checkout total test computes the tax and the total
+  from product prices (`BigDecimal`, `HALF_UP` rounding) and compares them with the page.
+- **Readable report.** Page methods are annotated with `@Step`, tests have `@DisplayName`,
+  and a screenshot is attached to the report when a test fails.
+  Test names and step descriptions are written in Russian.
+- **Headless in CI.** Locally the tests run in a regular Chrome window; in GitHub Actions they run headless
+  via `-Dselenide.headless=true`, with no code changes.
 
-## Запуск
+## Running the tests
 
-Нужны JDK 17+ и Google Chrome.
+Requires JDK 17+ and Google Chrome.
 
 ```bash
-# все тесты, браузер виден
+# all tests, browser window visible
 ./mvnw test
 
-# без окна браузера, как в CI
+# headless, same as in CI
 ./mvnw test -Dselenide.headless=true
 
-# один класс тестов
+# a single test class
 ./mvnw test -Dtest=CheckoutTest
 
-# открыть отчёт Allure в браузере после прогона
+# open the Allure report in a browser after the run
 ./mvnw allure:serve
 ```
 
-На Windows вместо `./mvnw` — `mvnw.cmd`.
+On Windows, use `mvnw.cmd` instead of `./mvnw`.
 
 ## CI
 
-Workflow [`.github/workflows/ui-tests.yml`](.github/workflows/ui-tests.yml) запускается на push и pull request
-в `main` и вручную (`workflow_dispatch`):
+The workflow [`.github/workflows/ui-tests.yml`](.github/workflows/ui-tests.yml) runs on push and pull request
+to `main`, and can be started manually (`workflow_dispatch`). It:
 
-1. поднимает JDK 17 и кэширует зависимости Maven;
-2. запускает тесты в headless Chrome;
-3. собирает отчёт Allure — даже если тесты упали;
-4. сохраняет отчёт как артефакт сборки и для `main` публикует его на GitHub Pages.
+1. sets up JDK 17 and caches Maven dependencies;
+2. runs the tests in headless Chrome;
+3. builds the Allure report, even if some tests failed;
+4. uploads the report as a build artifact and, for `main`, publishes it to GitHub Pages.
